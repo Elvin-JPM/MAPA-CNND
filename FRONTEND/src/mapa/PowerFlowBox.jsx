@@ -3,18 +3,16 @@ import L from "leaflet";
 import { useEffect, useState, useRef } from "react";
 import { LuUtilityPole } from "react-icons/lu";
 
-const Block = ({
+const PowerFlowBox = ({
   topLeftPosition,
   bottomRightPosition,
-  color = "#113F67",
-  hoverColor = "darkred",
+  color = "#0F0E0E",
   text = "",
-  textColor = "white",
+  textColor = "#00F7FF",
   fontSize = null,
   fontWeight = "bold",
   textShadow = "1px 1px 2px rgba(0,0,0,0.8)",
 }) => {
-  const [paneReady, setPaneReady] = useState(false);
   const map = useMap();
   const [blockStyle, setBlockStyle] = useState({
     width: 20,
@@ -28,16 +26,6 @@ const Block = ({
     (topLeftPosition[0] + bottomRightPosition[0]) / 2,
     (topLeftPosition[1] + bottomRightPosition[1]) / 2,
   ];
-
-  // Create pane for arrows on top
-  useEffect(() => {
-    if (!map) return;
-    if (!map.getPane("blockPane")) {
-      map.createPane("blockPane");
-      map.getPane("blockPane").style.zIndex = 2000;
-    }
-    setPaneReady(true);
-  }, [map]);
 
   useEffect(() => {
     if (!map) return;
@@ -80,67 +68,47 @@ const Block = ({
     };
   }, [map, topLeftPosition, bottomRightPosition, color]);
 
-  // Set up event handlers after the marker is added to the map
-  useEffect(() => {
-    if (markerRef.current) {
-      const element = markerRef.current.getElement();
-      if (element) {
-        const blockDiv = element.querySelector(".custom-block");
-        if (blockDiv) {
-          // Mouse enter event
-          blockDiv.onmouseenter = () => {
-            setBlockStyle((prev) => ({
-              ...prev,
-              backgroundColor: hoverColor,
-              boxShadow: "0 0 8px rgba(0,0,0,0.9)",
-            }));
-          };
-
-          // Mouse leave event
-          blockDiv.onmouseleave = () => {
-            setBlockStyle((prev) => ({
-              ...prev,
-              backgroundColor: color,
-              boxShadow: "0 2px 4px rgba(0,0,0,0.8)",
-            }));
-          };
-        }
-      }
-    }
-  }, [color, hoverColor]);
-
   // Calculate font size based on block size if not provided
   const calculatedFontSize =
-    fontSize || `${Math.min(blockStyle.width, blockStyle.height) * 0.5}px`;
+    fontSize || `${Math.min(blockStyle.width, blockStyle.height) * 0.49}px`;
 
   const icon = L.divIcon({
     className: "custom-block-container",
-    html: `<div class="custom-block" style="
+    html: `
+    <div class="custom-block" style="
       width: ${blockStyle.width}px; 
       height: ${blockStyle.height}px; 
       background-color: ${blockStyle.backgroundColor};
-      border-radius: 2px;
-      box-shadow: ${blockStyle.boxShadow || "0 2px 4px rgba(0,0,0,0.8)"};
+      border-left: 2px solid ${textColor};
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
-      transition: background-color 0.3s, box-shadow 0.3s;
       cursor: pointer;
+      margin: 0;
+      padding: 0;
+      opacity: 0.98;
     ">
-      <span style="
+      <span class="pulsing-text" style="
         color: ${textColor};
         font-size: ${calculatedFontSize};
         font-weight: ${fontWeight};
-        text-shadow: ${textShadow};
-        padding: 2px;
         text-transform: uppercase;
-        letter-spacing: 2px;
+        letter-spacing: 1px;
         text-align: center;
-        line-height: 1;
-        vertical-align: middle;
+        animation: pulse 1.5s infinite;
       ">${text}</span>
-    </div>`,
+    </div>
+
+    <style>
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.005); opacity: 0.65; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+    </style>
+  `,
     iconSize: [blockStyle.width, blockStyle.height],
     iconAnchor: [blockStyle.width / 2, blockStyle.height / 2],
   });
@@ -151,35 +119,8 @@ const Block = ({
       icon={icon}
       ref={markerRef}
       // pane="blockPane" // ✅ force Block marker above arrows
-      eventHandlers={{
-        mouseover: (e) => {
-          const container = e.target.getElement();
-          if (container) {
-            const block = container.querySelector(".custom-block");
-            if (block) {
-              block.style.backgroundColor = hoverColor;
-              block.style.boxShadow = "0 0 8px rgba(0,0,0,0.9)";
-            }
-          }
-        },
-        mouseout: (e) => {
-          const container = e.target.getElement();
-          if (container) {
-            const block = container.querySelector(".custom-block");
-            if (block) {
-              block.style.backgroundColor = color;
-              block.style.boxShadow = "0 2px 4px rgba(0,0,0,0.8)";
-            }
-          }
-        },
-      }}
-    >
-      {/* ✅ Put popup in same pane so it also stays on top */}
-      <Popup pane="blockPane">
-        <LuUtilityPole />
-      </Popup>
-    </Marker>
+    ></Marker>
   );
 };
 
-export default Block;
+export default PowerFlowBox;

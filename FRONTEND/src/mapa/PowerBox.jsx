@@ -3,18 +3,17 @@ import L from "leaflet";
 import { useEffect, useState, useRef } from "react";
 import { LuUtilityPole } from "react-icons/lu";
 
-const Block = ({
+const PowerBox = ({
   topLeftPosition,
   bottomRightPosition,
-  color = "#113F67",
-  hoverColor = "darkred",
+  color = "#FFFCFB",
+  hoverColor = "#FAF6E9",
   text = "",
-  textColor = "white",
+  textColor = "black",
   fontSize = null,
   fontWeight = "bold",
   textShadow = "1px 1px 2px rgba(0,0,0,0.8)",
 }) => {
-  const [paneReady, setPaneReady] = useState(false);
   const map = useMap();
   const [blockStyle, setBlockStyle] = useState({
     width: 20,
@@ -28,16 +27,6 @@ const Block = ({
     (topLeftPosition[0] + bottomRightPosition[0]) / 2,
     (topLeftPosition[1] + bottomRightPosition[1]) / 2,
   ];
-
-  // Create pane for arrows on top
-  useEffect(() => {
-    if (!map) return;
-    if (!map.getPane("blockPane")) {
-      map.createPane("blockPane");
-      map.getPane("blockPane").style.zIndex = 2000;
-    }
-    setPaneReady(true);
-  }, [map]);
 
   useEffect(() => {
     if (!map) return;
@@ -119,7 +108,7 @@ const Block = ({
       width: ${blockStyle.width}px; 
       height: ${blockStyle.height}px; 
       background-color: ${blockStyle.backgroundColor};
-      border-radius: 2px;
+      border-radius: 4px;
       box-shadow: ${blockStyle.boxShadow || "0 2px 4px rgba(0,0,0,0.8)"};
       display: flex;
       align-items: center;
@@ -127,18 +116,18 @@ const Block = ({
       position: relative;
       transition: background-color 0.3s, box-shadow 0.3s;
       cursor: pointer;
+      margin: 0;
+      padding: 0;
     ">
       <span style="
         color: ${textColor};
         font-size: ${calculatedFontSize};
         font-weight: ${fontWeight};
-        text-shadow: ${textShadow};
-        padding: 2px;
+        // text-shadow: ${textShadow};
+        padding: 0px;
         text-transform: uppercase;
-        letter-spacing: 2px;
+        letter-spacing: 1px;
         text-align: center;
-        line-height: 1;
-        vertical-align: middle;
       ">${text}</span>
     </div>`,
     iconSize: [blockStyle.width, blockStyle.height],
@@ -173,13 +162,8 @@ const Block = ({
           }
         },
       }}
-    >
-      {/* ✅ Put popup in same pane so it also stays on top */}
-      <Popup pane="blockPane">
-        <LuUtilityPole />
-      </Popup>
-    </Marker>
+    ></Marker>
   );
 };
 
-export default Block;
+export default PowerBox;

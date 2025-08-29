@@ -1,107 +1,145 @@
-import React, { useEffect, useRef } from "react";
-import { useMap } from "react-leaflet";
+// Arrow.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 
-const ArrowMarker = ({
-  position,
-  direction = "right",
-  color = "#FF0000", // Bright red for visibility
-  size = 60,
+const Arrow = ({
+  direction = "right", // 'up', 'down', 'left', 'right'
+  initialCoordinate,
+  finalCoordinate,
+  color = "#00F7FF",
+  size = 18,
+  speed = 1200,
+  count = 6,
+  strokeWidth = 5,
 }) => {
   const map = useMap();
-  const markerRef = useRef(null);
+  const rafRef = useRef(null);
+  const startRef = useRef(null);
+  const [phase, setPhase] = useState(0);
+  const [paneReady, setPaneReady] = useState(false);
 
+  // Determine horizontal or vertical
+  const isHorizontal = useMemo(
+    () => direction === "left" || direction === "right",
+    [direction]
+  );
+  const isVertical = useMemo(
+    () => direction === "up" || direction === "down",
+    [direction]
+  );
+
+  // Compute positions based on direction
+  const [startPos, endPos, rotationDeg] = useMemo(() => {
+    if (!initialCoordinate || !finalCoordinate) return [null, null, 0];
+
+    let start = [...initialCoordinate];
+    let end = [...finalCoordinate];
+    let rotation = 0;
+
+    if (isHorizontal) {
+      if (direction === "left") {
+        start = [initialCoordinate[0], finalCoordinate[1]];
+        end = [finalCoordinate[0], initialCoordinate[1]];
+        rotation = 180;
+      } else {
+        // right
+        rotation = 0;
+      }
+    } else if (isVertical) {
+      if (direction === "up") {
+        start = [finalCoordinate[0], initialCoordinate[1]];
+        end = [initialCoordinate[0], finalCoordinate[1]];
+        rotation = -90;
+      } else {
+        // down
+        rotation = 90;
+      }
+    }
+
+    return [start, end, rotation];
+  }, [initialCoordinate, finalCoordinate, direction, isHorizontal, isVertical]);
+
+  // Interpolation
+  const interp = (t) => {
+    if (!startPos || !endPos) return [0, 0];
+
+    if (isHorizontal) {
+      const lat = startPos[0];
+      const lng = startPos[1] + (endPos[1] - startPos[1]) * t;
+      return [lat, lng];
+    } else {
+      const lat = startPos[0] + (endPos[0] - startPos[0]) * t;
+      const lng = startPos[1];
+      return [lat, lng];
+    }
+  };
+
+  // Create pane for arrows on top
   useEffect(() => {
     if (!map) return;
+    if (!map.getPane("arrowPane")) {
+      map.createPane("arrowPane");
+      map.getPane("arrowPane").style.zIndex = 1000;
+    }
+    setPaneReady(true);
+  }, [map]);
 
-    // Determine rotation based on direction
-    const getRotation = () => {
-      switch (direction) {
-        case "right":
-          return "0deg";
-        case "oblique-right-down":
-          return "45deg";
-        case "down":
-          return "90deg";
-        case "oblique-left-down":
-          return "135deg";
-        case "left":
-          return "180deg";
-        case "oblique-left-up":
-          return "225deg";
-        case "oblique-right-up":
-          return "315deg";
-        case "up":
-          return "270deg";
-        default:
-          return "0deg";
-      }
+  // Animate
+  useEffect(() => {
+    startRef.current = null;
+    const tick = (ts) => {
+      if (startRef.current == null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const p = (elapsed % speed) / speed;
+      setPhase(p);
+      rafRef.current = requestAnimationFrame(tick);
     };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [speed, startPos, endPos, direction]);
 
-    // Create the arrow HTML - JUST THE ARROW, NO CIRCLE
-    const arrowHtml = `
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: ${size}px;
-        height: ${size}px;
-      ">
-        <div style="
-          width: ${size}px;
-          height: ${size}px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: arrowPulse 1.5s ease-in-out infinite;
-          transform: rotate(${getRotation()});
-        ">
-          <!-- Main arrow only -->
-          <div style="
-            width: 100%;
-            height: 100%;
-            background: ${color};
-            clip-path: polygon(0% 40%, 60% 40%, 60% 0%, 100% 50%, 60% 100%, 60% 60%, 0% 60%);
-          "></div>
-        </div>
-      </div>
-      <style>
-        @keyframes arrowPulse {
-          0% { transform: rotate(${getRotation()}) scale(1); opacity: 0.7; }
-          50% { transform: rotate(${getRotation()}) scale(1.1); opacity: 1; }
-          100% { transform: rotate(${getRotation()}) scale(1); opacity: 0.7; }
-        }
-      </style>
+  if (!startPos || !endPos || !paneReady) return null;
+
+  // Create SVG icon
+  const makeIcon = (opacity) => {
+    const arrowSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 20 20" style="overflow: visible;">
+        <line x1="0" y1="0" x2="10" y2="10" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round"/>
+        <line x1="0" y1="20" x2="10" y2="10" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round"/>
+      </svg>
     `;
-
-    // Create custom icon for the arrow
-    const icon = L.divIcon({
-      className: "custom-arrow-icon",
-      html: arrowHtml,
+    return L.divIcon({
+      className: "electric-arrow-icon",
+      html: `<div style="
+        transform: rotate(${rotationDeg}deg);
+        opacity:${opacity};
+        transition: opacity 60ms linear;
+        filter: drop-shadow(0 0 2px black);
+      ">${arrowSvg}</div>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
     });
+  };
 
-    // Create or update marker
-    if (!markerRef.current) {
-      markerRef.current = L.marker(position, {
-        icon,
-        zIndexOffset: 1000,
-      }).addTo(map);
-    } else {
-      markerRef.current.setLatLng(position);
-      markerRef.current.setIcon(icon);
-    }
+  const markers = Array.from({ length: Math.max(1, count) }, (_, i) => {
+    const p = (phase + i / count) % 1;
+    const pos = interp(p);
+    const opacity = Math.max(0, Math.min(1, 1 - Math.abs(2 * p - 1)));
+    return (
+      <Marker
+        key={i}
+        position={pos}
+        icon={makeIcon(opacity)}
+        interactive={false}
+        pane="arrowPane"
+      />
+    );
+  });
 
-    // Cleanup on unmount
-    return () => {
-      if (markerRef.current) {
-        map.removeLayer(markerRef.current);
-      }
-    };
-  }, [map, position, direction, color, size]);
-
-  return null;
+  return <>{markers}</>;
 };
 
-export default ArrowMarker;
+export default Arrow;
