@@ -19,6 +19,7 @@ const DemandStaticArrow = ({
     }).addTo(map);
 
     // Add arrowhead
+
     L.polylineDecorator(line, {
       patterns: [
         {

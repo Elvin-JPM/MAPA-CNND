@@ -2,7 +2,10 @@ import { useState } from "react";
 import Map from "./mapa/Mapa";
 import styled from "styled-components";
 import GlobalStyles from "./styles/GlobalStyles";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import Block from "./mapa/Block";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import MapControls from "./ui/MapControls";
 
 const AppContainer = styled.div`
   position: relative;
@@ -57,17 +60,53 @@ const EnergyTable = styled.div`
   z-index: 1000;
 `;
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+    },
+  },
+});
+
+const MapWrapper = styled.div`
+  width: 100%;
+  height: 100%; /* or 80vh, or calc(100vh - headerHeight) */
+  display: flex;
+`;
+
 function App() {
-  const [count, setCount] = useState(0);
+  const [mapControls, setMapControls] = useState([
+    { id: "show-generacion", label: "Mostrar Generacion", checked: true },
+    { id: "show-demanda", label: "Mostrar Demanda", checked: true },
+    { id: "show-flujos", label: "Mostrar Flujos", checked: true },
+    { id: "show-tabla", label: "Mostrar Tabla", checked: true },
+  ]);
+
+  const handleControlChange = (controlId, checked) => {
+    console.log(`Control ${controlId} changed to:`, checked);
+    setMapControls((prev) =>
+      prev.map((control) =>
+        control.id === controlId ? { ...control, checked } : control
+      )
+    );
+  };
 
   return (
     <>
-      <GlobalStyles />
-      <AppContainer>
-        {/* <MapTitle>Mapa de Generación y Demanda</MapTitle> */}
-        <Map />
-        {/* <EnergyTable /> */}
-      </AppContainer>
+      <QueryClientProvider client={queryClient}>
+        <ReactQueryDevtools initialIsOpen={false} />
+        <GlobalStyles />
+        <AppContainer>
+          {/* <MapTitle>Mapa de Generación y Demanda</MapTitle> */}
+          <MapWrapper>
+            <Map controls={mapControls} />
+          </MapWrapper>
+          <MapControls
+            controls={mapControls}
+            onControlChange={handleControlChange}
+          />
+        </AppContainer>
+      </QueryClientProvider>
     </>
   );
 }
